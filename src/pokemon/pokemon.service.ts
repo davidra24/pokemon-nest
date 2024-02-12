@@ -5,31 +5,40 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
 import { Pokemon } from './entities';
 
 @Injectable()
 export class PokemonService {
+  private defaultLimit: number;
   constructor(
     @InjectModel(Pokemon.name) private readonly pokemonModel: Model<Pokemon>,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.defaultLimit = configService.get<number>('default_limit');
+  }
 
   //@HttpCode(HttpStatus.CREATED)
   async create(createPokemonDto: CreatePokemonDto) {
     try {
-      if (createPokemonDto.name)
-        createPokemonDto.name = createPokemonDto.name.toLowerCase();
       return await this.pokemonModel.create(createPokemonDto);
     } catch (error) {
       this.handleException(error);
     }
   }
 
-  async findAll() {
+  /* async findAll() {
     return await this.pokemonModel.find();
+  } */
+
+  async findAll(paginationDto: PaginationDto) {
+    const { limit = this.defaultLimit, offset } = paginationDto;
+    return this.pokemonModel.find().limit(limit).skip(offset);
   }
 
   async findOne(term: string) {
@@ -53,8 +62,9 @@ export class PokemonService {
   async update(term: string, updatePokemonDto: UpdatePokemonDto) {
     try {
       const pokemon: Pokemon = await this.findOne(term);
+      /*
       if (updatePokemonDto.name)
-        updatePokemonDto.name = updatePokemonDto.name.toLowerCase();
+        updatePokemonDto.name = updatePokemonDto.name.toLowerCase(); */
 
       await pokemon.updateOne(updatePokemonDto, { new: true });
       return { ...pokemon.toJSON(), ...updatePokemonDto };
